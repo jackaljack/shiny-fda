@@ -176,7 +176,7 @@ reporter <- fromJSON("https://api.fda.gov/device/event.json?search=date_received
 # per chiamate "combinate" devo usare AND e devo fare una chiamata per ogni combinazione
 hospital_AND_death <- fromJSON("https://api.fda.gov/device/event.json?search=event_location:hospital+AND+event_type:death&count=device.generic_name.exact")
 
-time_series <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray&count=date_received")
+time_series <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2015-01-01]+AND+device.generic_name:x-ray&count=date_received")
 date_posix2 <- strptime(time_series$results$time, "%Y%m%d")
 received_by_fda2 <- as.Date(date_posix2, "%Y-%m-%d")
 df <- data.frame(dates = received_by_fda2, reports = time_series$results$count)
