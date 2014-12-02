@@ -1,35 +1,38 @@
-library(shiny)
 library(jsonlite)
 library(ggplot2)
 suppressPackageStartupMessages(library(googleVis))
-
-runApp("maudeApp")
-
-# see here: https://open.fda.gov/api/reference/
 
 api_open_request <- "https://api.fda.gov/"
 api_endpoint <- "device/event.json?"
 api_key = "api_key=12345"
 
-### str1 <- "https://api.fda.gov/drug/event.json?api_key="
-
 # date_received is the date the report was received by the FDA
 date_start <- "1991-01-01" # date picker
 date_end <- "2015-01-01" # date picker
-search_dates <- paste0("date_received:[", date_start, "+TO+", date_end, "]")
+search_dates <- paste0("search=date_received:[", date_start, "+TO+", date_end, "]")
 
-# search a medical device, a drug, or a particular kind of food (regular expression)
-search_item <- "x-ray"
+search_medDev1 <- "x-ray"
+search_medDev2 <- "infusion pump"
+search_medDev3 <- "glucose"
+search_manufacturer1 <- "ZIMMER+INC." # remove ',' otherwise it won't work
+search_manufacturer2 <- "COVIDIEN"
+search_manufacturer3 <- "GE+HEALTHCARE"
+search_manufacturer4 <- "MEDTRONIC+MINIMED"
+search_manufacturer5 <- "BAXTER+HEALTHCARE+PTE.+LTD." # WORKS!
+search_manufacturer6 <- "SMITHS+MEDICAL+MD+INC."
+
+fda <- fromJSON(paste0('https://api.fda.gov/device/event.json?search=date_received:[19910101+TO+20150101]+AND+device.manufacturer_d_name:', search_manufacturer, '&count=device.generic_name.exact'))
+
+### fda <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray&count=device.manufacturer_d_name.exact")
   
-str2 <- "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray"
-str3 <- "&count=date_received"
-###str4 <- "&limit=10"
+### str2 <- "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray"
+### str3 <- "&count=date_received"
+str4 <- "&limit=10"
 # use 'skip' in combination with 'limit' to paginate results.
-###str5 <- "&skip=0" # skip=0, 10, 20, 30, etc...
-###str6 <- "&skip=100"
+str5 <- "&skip=0" # skip=0, 10, 20, 30, etc...
 
-api_call <- paste0(str0, str2, str4, str5)
-fda <- fromJSON(api_call)
+### api_call <- paste0(str0, str2, str4, str5)
+###fda <- fromJSON(api_call)
 
 # if there are more than 1000 results from an API call, we have to make more calls and get a list
 # for each call and merge all of them in a single data frame afterwards.
@@ -41,11 +44,28 @@ disclaimer <- fda$meta$disclaimer
 license <- fda$meta$license
 last_update <- fda$meta$last_updated
 
-exact_match <- "glucose"
-api_call2 <- paste0(str0, "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:", "\"", exact_match, "\"", str4) 
-fda <- fromJSON(api_call2)
+##############################################################
+# top20 manufacturers NAMES for the chosen medical device
+api_call_medDev <- paste0(api_open_request, api_endpoint,
+                          "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:", "\"",
+                          search_medDev3, "\"", "&count=device.manufacturer_d_name.exact",
+                          "&limit=20&skip=0") 
+fda_medDev <- fromJSON(api_call_medDev)
 
-fda0 <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray&count=device.manufacturer_d_country.exact")
+# top10 manufacturers COUNTRIES for the chosen medical device
+api_call_medDev2 <- paste0(api_open_request, api_endpoint,
+                          "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:", "\"",
+                          search_medDev3, "\"", "&count=device.manufacturer_d_country.exact",
+                          "&limit=10&skip=0") 
+fda_medDev2 <- fromJSON(api_call_medDev2)
+
+# top10 medical devices produced by the chosen manufacturer
+api_call_manufacturer <- paste0(api_open_request, api_endpoint,
+                          "search=date_received:[19910101+TO+20150101]+AND+device.manufacturer_d_name:", "\"",
+                          search_manufacturer1, "\"", "&count=device.generic_name.exact",
+                          "&limit=10&skip=0") 
+fda_manufacturer <- fromJSON(api_call_manufacturer)
+##############################################################
 
 fda$results$device[[1]]$generic_name
 

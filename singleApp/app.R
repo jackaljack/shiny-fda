@@ -1,6 +1,8 @@
 
 # Load required packages --------------------------------------------------
 
+library(jsonlite)
+library(ggplot2)
 
 
 # General settings --------------------------------------------------------
@@ -39,7 +41,7 @@ server <- function(input, output) {
   ### output$startDate <- renderText({input$dateRange[1]})
   ### output$endDate   <- renderText({input$dateRange[2]})
   
-  # create the string for the API call (NOT renderText but a reactive expression) 
+  # create the string for the API call (it's a reactive expression, NOT a renderText) 
   api_call <- reactive({
     
     str0 <- paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
@@ -65,6 +67,16 @@ server <- function(input, output) {
   
   ##############################################################
   # make the API call (TO BE FIXED)
+  
+  api_response <- reactive({ fromJSON(api_call()) })
+  
+  df <- reactive({
+    df_tmp <- api_response()$results
+    date_posix <- strptime(df_tmp$time, "%Y%m%d")
+    received_by_fda <- as.Date(date_posix, "%Y-%m-%d")
+    data.frame(dates = received_by_fda, reports = df_tmp$count)
+    })
+  
   output$df_from_API_call <- renderTable({ api_response <- fromJSON(api_call())
                                         head(api_response$results) })
   # DEBUG
@@ -107,6 +119,21 @@ server <- function(input, output) {
     if (input$manufacturer_checkboxInput == TRUE)
       selectInput(inputId = "chosen_manufacturer", label = "",
                   choices = manufacturer_RegEx, selected = manufacturer_RegEx[1])
+    })
+
+  # summary string about the results from the API call
+  output$summaryView <- renderPrint({
+    max_index <- which.max(df()$reports)
+    paste0("The maximum number of reports received by the FDA in a single day is ", df()$reports[max_index],
+           ", and they were received on " , df()$dates[max_index])
+    })
+
+  # plot the time series of the reports across the selected date range
+  output$timeSeriesView <- renderPlot({
+    ggplot(data = df(), aes(x = dates, y = reports)) +
+      geom_line() +
+      labs(x = "Time", y = "Adverse Event Reports") +
+      ggtitle(paste0("Reports received by the FDA from ", input$dateRange[1], " to ", input$dateRange[2]))
     })
   
 } # close server function
@@ -165,8 +192,11 @@ ui <- shinyUI(fluidPage(
     ),  # close sidebarPanel
     
     mainPanel(
-      helpText(medDevices$meta$disclaimer),
-      ### textOutput("api_call"),
+      h4("Summary"),
+      textOutput("summaryView"),
+      
+      h4("Time Series"),
+      plotOutput("timeSeriesView"),
       
       tableOutput("df_from_API_call") # DEBUG
       
