@@ -60,11 +60,16 @@ manufacturer_country <- fromJSON("https://api.fda.gov/device/event.json?search=d
 source_type <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=source_type.exact")
 event_type <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_type.exact")
 report_source_code <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=report_source_code.exact")
-reporter <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=reporter_occupation_code.exact")
+reporter <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=reporter_occupation_code.exact") # too many levels
 hospital_AND_death <- fromJSON("https://api.fda.gov/device/event.json?search=event_location:hospital+AND+event_type:death&count=device.generic_name.exact")
-# device_operator <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_operator.exact") # too dirty
-# patient_sequence_number_outcome <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=patient.sequence_number_outcome.exact") # too messy
-# event_location <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_location.exact") # rather useless, incompleted data
+home_AND_death <- fromJSON("https://api.fda.gov/device/event.json?search=event_location:home+AND+event_type:death&count=device.generic_name.exact")
+device_operator <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_operator.exact") # too dirty
+patient_sequence_number_outcome <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=patient.sequence_number_outcome.exact") # too messy
+event_location <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_location.exact") # rather useless, incompleted data
+
+# interesting comparisons
+head(home_AND_death$results)
+head(hospital_AND_death$results)
 
 
 # Some ideas for the plots ------------------------------------------------
@@ -161,6 +166,17 @@ Bar <- gvisBarChart(api_response_medDev$results, options = list(
   hAxis="{title:'adverse events'}"))
 plot(Bar)
 
+# googleVis line chart
+Line <- gvisLineChart(data = df, options = list(
+  title="Adverse events",
+  vAxis="{title:'Reports'}",
+  hAxis="{title:'Time'}"))
+plot(Line)
+
+# googleVis GeoChart
+emptyGeoChart <- gvisGeoChart(df)
+plot(emptyGeoChart)
+
 # every API call containing "count=date_received" returns a time series
 time_series <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2015-01-01]+AND+device.generic_name:x-ray&count=date_received")
 date_posix2 <- strptime(time_series$results$time, "%Y%m%d")
@@ -190,3 +206,41 @@ str2 <- "PUMP, INFUSION, IMPLANTED, PROGRAMMABLE"
 str2 <- gsub(pattern = ",", replacement = "", x = str2)
 str2 <- gsub(pattern = " ", replacement = "+", x = str2)
 
+# medical devices produced by the chosen manufacturer (put this in a reactive expression, to update selectInput)
+api_call <- paste0(api_open_request, api_endpoint, search_dates,
+                   "+AND+device.manufacturer_d_name:", "\"", search_manufacturer3, "\"",
+                   "&count=device.generic_name.exact",
+                   "&limit=1000", search_skip) 
+api_response <- fromJSON(api_call)
+apimedDevSubset <- api_response$results$term
+
+
+sanitizeString <- function(inputString){
+  inputString <- gsub(pattern = ",", replacement = "", x = inputString)
+  sanitized_string <- gsub(pattern = " ", replacement = "+", x = inputString)
+  return(sanitized_string)
+}
+
+# try/catch for API calls
+search_manufacturerNA <- "giveMe404"
+api_call_404 <- paste0(api_open_request, api_endpoint, search_dates,
+                       "+AND+device.manufacturer_d_name:", "\"", search_manufacturerNA, "\"",
+                       "&count=device.generic_name.exact",
+                       "&limit=1000", search_skip)
+api_response_404 <- fromJSON(api_call_404)
+
+tryCatch(
+  stop("you threw an error"), 
+  error = function(e) 
+  {
+    print(e$message) # or whatever error handling code you want
+  })
+
+# This simple tryCatch works
+tryCatch(
+  expr = fromJSON(api_call_404),
+  error = function(e) 
+  {
+    print(paste0(e$message, ": Try with a different combination of manufacturer/medical device"))
+    print("Try with a different combination of manufacturer/medical device")
+  })

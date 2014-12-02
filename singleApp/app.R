@@ -2,8 +2,15 @@
 # Load required packages --------------------------------------------------
 
 library(jsonlite)
-library(ggplot2)
+library(ggplot2) # NOT used
 suppressPackageStartupMessages(library(googleVis))
+
+# define a function to sanitize strings (the API call would fail with strings containing ',' or ' ')
+sanitizeString <- function(inputString){
+  inputString <- gsub(pattern = ",", replacement = "", x = inputString)
+  sanitized_string <- gsub(pattern = " ", replacement = "+", x = inputString)
+  return(sanitized_string)
+}
 
 # General settings --------------------------------------------------------
 
@@ -44,19 +51,13 @@ server <- function(input, output) {
     str0 <- paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
     
     if (input$manufacturer_checkboxInput == TRUE) {
-      # sanitize string (the API call would fail with names containing ',' or ' ')
-      sanitized_manufacturer <- gsub(pattern = ",", replacement = "", x = input$chosen_manufacturer)
-      sanitized_manufacturer <- gsub(pattern = " ", replacement = "+", x = sanitized_manufacturer)
-      str1 <- paste0("+AND+device.manufacturer_d_name:", sanitized_manufacturer)
+      str1 <- paste0("+AND+device.manufacturer_d_name:", sanitizeString(input$chosen_manufacturer))
     }
       
     else str1 <- ""
     
     if (input$medDev_checkboxInput == TRUE) {
-      # sanitize string
-      sanitized_medDev <- gsub(pattern = ",", replacement = "", x = input$chosen_medDev)
-      sanitized_medDev <- gsub(pattern = " ", replacement = "+", x = sanitized_medDev)
-      str2 <- paste0("+AND+device.generic_name:", sanitized_medDev)
+      str2 <- paste0("+AND+device.generic_name:", sanitizeString(input$chosen_medDev))
     }
     
     else str2 <- ""
@@ -67,7 +68,7 @@ server <- function(input, output) {
     paste0(api_open_request, api_endpoint, str0, str1, str2, str3)    
     })
   
-  # make the API call
+  # make the API call (implement a tryCatch in order to handle HTTP 404 request code)
   api_response <- reactive({ fromJSON(api_call()) })
   
   # extract a data frame from the API response
@@ -118,12 +119,25 @@ server <- function(input, output) {
            ", and they were received on " , df()$dates[max_index])
     })
 
-  # plot the time series of the reports across the selected date range
+  # plot the time series of the reports across the selected date range (NOT shown)
   output$timeSeriesView <- renderPlot({
     ggplot(data = df(), aes(x = dates, y = reports)) +
       geom_line() +
       labs(x = "Time", y = "Adverse Event Reports") +
       ggtitle(paste0("Reports received by the FDA from ", input$dateRange[1], " to ", input$dateRange[2]))
+    })
+  
+  # plot the time series of the reports across the selected date range
+  # Note: googleVis charts are not shown within RStudio
+  output$gVisTimeSeriesView <- renderGvis({
+    gvisLineChart(data = df(), options = list(
+      title="", vAxis="{title:'Reports'}", hAxis="{title:'Time'}"))
+    })
+  
+  # plot a GeoChart showing the areas where the adverse events were occurred
+  # Note: googleVis charts are not shown within RStudio
+  output$gVisMapView <- renderGvis({
+    gvisGeoChart(df())
     })
   
 } # close server function
@@ -172,21 +186,23 @@ ui <- shinyUI(fluidPage(
       helpText("Last update: ", medDevices$meta$last_updated),
       helpText(strong("Disclaimer")),
       helpText(medDevices$meta$disclaimer)
-      
-      ###uiOutput("renderPrint1"), # start date
-      ###uiOutput("renderPrint2"), # end date
-      ###uiOutput("startDate"),
-      ###uiOutput("endDate")
-      
+        
     ),  # close sidebarPanel
     
     mainPanel(
       
-      h4("Summary"),
-      textOutput("summaryView"),
+      # h4("Summary"),
+      # textOutput("summaryView"),
       
-      h4("Time Series"),
-      plotOutput("timeSeriesView")
+      # h4("Time Series"),
+      # plotOutput("timeSeriesView"),
+      
+      # if request code is 404 show an error message, otherwise print a time series
+      h4("Reports received by the FDA"),
+      htmlOutput("gVisTimeSeriesView"),
+      
+      h4("GoogleVis GeoChart"),
+      htmlOutput("gVisMapView")
 
     )
     
@@ -202,4 +218,7 @@ shinyApp(ui = ui, server = server)
 # Reference ---------------------------------------------------------------
 
 # MAUDE database - http://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfmaude/search.cfm
+# openFDA API basics - https://open.fda.gov/api/reference/
+# openFDA API devices - https://open.fda.gov/device/event/
+# openFDA API devices reference - https://open.fda.gov/device/event/reference/
 
