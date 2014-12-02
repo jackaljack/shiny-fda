@@ -7,85 +7,69 @@ api_endpoint <- "device/event.json?"
 api_key = "api_key=12345"
 
 # date_received is the date the report was received by the FDA
-date_start <- "1991-01-01" # date picker
-date_end <- "2015-01-01" # date picker
+date_start <- "1991-01-01"
+date_end <- "2015-01-01" 
 search_dates <- paste0("search=date_received:[", date_start, "+TO+", date_end, "]")
 
 search_medDev1 <- "x-ray"
 search_medDev2 <- "infusion pump"
 search_medDev3 <- "glucose"
-search_manufacturer1 <- "ZIMMER+INC." # remove ',' otherwise it won't work
+
+# remove ',' and replace ' ' with '+' otherwise it won't work
+search_manufacturer1 <- "ZIMMER+INC." 
 search_manufacturer2 <- "COVIDIEN"
 search_manufacturer3 <- "GE+HEALTHCARE"
 search_manufacturer4 <- "MEDTRONIC+MINIMED"
-search_manufacturer5 <- "BAXTER+HEALTHCARE+PTE.+LTD." # WORKS!
+search_manufacturer5 <- "BAXTER+HEALTHCARE+PTE.+LTD."
 search_manufacturer6 <- "SMITHS+MEDICAL+MD+INC."
 
-fda <- fromJSON(paste0('https://api.fda.gov/device/event.json?search=date_received:[19910101+TO+20150101]+AND+device.manufacturer_d_name:', search_manufacturer, '&count=device.generic_name.exact'))
-
-### fda <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray&count=device.manufacturer_d_name.exact")
-  
-### str2 <- "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:x-ray"
-### str3 <- "&count=date_received"
-str4 <- "&limit=10"
+search_limit <- "&limit=10"
 # use 'skip' in combination with 'limit' to paginate results.
-str5 <- "&skip=0" # skip=0, 10, 20, 30, etc...
-
-### api_call <- paste0(str0, str2, str4, str5)
-###fda <- fromJSON(api_call)
-
-# if there are more than 1000 results from an API call, we have to make more calls and get a list
-# for each call and merge all of them in a single data frame afterwards.
-df <- as.data.frame(rbind(fda$results, fda2$results))
-
-# metadata
-total_results <- fda$meta$results$total
-disclaimer <- fda$meta$disclaimer
-license <- fda$meta$license
-last_update <- fda$meta$last_updated
-
-##############################################################
-# top20 manufacturers NAMES for the chosen medical device
-api_call_medDev <- paste0(api_open_request, api_endpoint,
-                          "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:", "\"",
-                          search_medDev3, "\"", "&count=device.manufacturer_d_name.exact",
-                          "&limit=20&skip=0") 
-fda_medDev <- fromJSON(api_call_medDev)
-
-# top10 manufacturers COUNTRIES for the chosen medical device
-api_call_medDev2 <- paste0(api_open_request, api_endpoint,
-                          "search=date_received:[19910101+TO+20150101]+AND+device.generic_name:", "\"",
-                          search_medDev3, "\"", "&count=device.manufacturer_d_country.exact",
-                          "&limit=10&skip=0") 
-fda_medDev2 <- fromJSON(api_call_medDev2)
-
-# top10 medical devices produced by the chosen manufacturer
-api_call_manufacturer <- paste0(api_open_request, api_endpoint,
-                          "search=date_received:[19910101+TO+20150101]+AND+device.manufacturer_d_name:", "\"",
-                          search_manufacturer1, "\"", "&count=device.generic_name.exact",
-                          "&limit=10&skip=0") 
-fda_manufacturer <- fromJSON(api_call_manufacturer)
-##############################################################
-
-fda$results$device[[1]]$generic_name
-
-fda <- fromJSON("https://api.fda.gov/device/enforcement.json?&count=report_date")
-fda$results$recalling_firm
-
-fda <- fromJSON("https://api.fda.gov/device/event.json?&count=device.generic_name.exact&limit=30")
-ggplot(fda$results, aes(x = term, y = count)) +
-  geom_bar(stat="identity", fill="lightblue", colour="black", na.rm = FALSE) + 
-  geom_text(aes(label = count), hjust=-0.2) +
-  labs(x="Medical Devices", y="Frequency") +
-  coord_flip() + 
-  ggtitle("This is a title")
+search_skip <- "&skip=0" # skip=0, 10, 20, 30, etc...
 
 
-fda <- fromJSON("https://api.fda.gov/device/event.json?search=device.generic_name:x-ray&limit=30")
-# total results
-fda$meta$results$total
+# examples of API calls ---------------------------------------------------
+
+# most common manufacturers NAMES for the chosen medical device
+api_call_manufacturers <- paste0(api_open_request, api_endpoint, search_dates,
+                                 "+AND+device.generic_name:", "\"", search_medDev1, "\"",
+                                 "&count=device.manufacturer_d_name.exact",
+                                 search_limit, search_skip) 
+api_response_manufacturers <- fromJSON(api_call_manufacturers)
+
+# most common manufacturers COUNTRIES for the chosen medical device
+api_call_countries <- paste0(api_open_request, api_endpoint, search_dates,
+                             "+AND+device.generic_name:", "\"", search_medDev1, "\"",
+                             "&count=device.manufacturer_d_country.exact",
+                             search_limit, search_skip) 
+api_response_countries <- fromJSON(api_call_countries)
+
+# most common medical devices produced by the chosen manufacturer
+api_call_medDev <- paste0(api_open_request, api_endpoint, search_dates,
+                          "+AND+device.manufacturer_d_name:", "\"", search_manufacturer1, "\"",
+                          "&count=device.generic_name.exact",
+                          search_limit, search_skip) 
+api_response_medDev <- fromJSON(api_call_medDev)
+
+# more ideas for API calls
+product_code <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_report_product_code.exact")
+generic_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.generic_name.exact")
+brand_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.brand_name.exact")
+manufacturer_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.manufacturer_d_name.exact")
+manufacturer_country <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.manufacturer_d_country.exact")
+source_type <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=source_type.exact")
+event_type <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_type.exact")
+report_source_code <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=report_source_code.exact")
+reporter <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=reporter_occupation_code.exact")
+hospital_AND_death <- fromJSON("https://api.fda.gov/device/event.json?search=event_location:hospital+AND+event_type:death&count=device.generic_name.exact")
+# device_operator <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_operator.exact") # too dirty
+# patient_sequence_number_outcome <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=patient.sequence_number_outcome.exact") # too messy
+# event_location <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_location.exact") # rather useless, incompleted data
 
 
+# Some ideas for the plots ------------------------------------------------
+
+fda <- fromJSON(paste0("https://api.fda.gov/device/event.json?", search_dates, search_limit, search_skip))
 # create empty lists to store medical devices identification data
 product_code <- character()
 generic_name <- character()
@@ -118,16 +102,6 @@ devices <- data.frame(productCode = product_code,
                       deviceOperator = device_operator,
                       receivedByFDA = received_by_fda)
 
-###############################
-# cosa altro metto nel dataframe
-fda$results$device[[1]]$implant_flag # FORSE
-fda$results$device[[1]]$manufacturer_d_state # FORSE
-fda$results$device[[1]]$device_availability # CREDO, ma riguarda
-fda$results$device[[1]]$device_event_key # NON CREDO
-fda$results$device[[1]]$device_evaluated_by_manufacturer # FORSE
-###############################
-
-
 dim(devices)[1]
 
 barplot(summary(devices$manufacturerCountry))
@@ -137,7 +111,6 @@ ggplot(devices, aes(x = manufacturerCountry, )) +
   labs(x="Medical Devices", y="Frequency") +
   coord_flip() + 
   ggtitle("This is a title")
-
 
 ggplot(devices, aes(x = productCode, )) +
   geom_bar(stat="bin", fill="red", colour="black", na.rm = FALSE) + 
@@ -165,80 +138,55 @@ ggplot(devices, aes(x = manufacturerName, fill = manufacturerCountry)) +
   coord_flip() + 
   ggtitle("This is a title")
 
+ggplot(api_response_medDev$results, aes(x = term, y = count)) +
+  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
+  geom_text(aes(label = count), hjust=0.5) +
+  labs(x="Medical Devices", y="Frequency") +
+  coord_flip() +
+  ggtitle("This is a title")
 
-ggplot(fda0$results, aes(x = term, y = count)) +
-  + geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) + 
-  + coord_flip()
+ggplot(api_response_manufacturers$results, aes(x = term, y = count)) +
+  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
+  coord_flip() +
+  ggtitle("This is a title")
+
+ggplot(api_response_countries$results, aes(x = term, y = count)) +
+  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
+  coord_flip()
 
 # googleVis bar chart
-fda00 <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+1999-12-31]+AND+device.generic_name:x-ray&count=event_type.exact")
-# potrei rinominare count in count_anno, cosi' avrei un dataframe con tutti i dati per tutti gli anni
-Bar <- gvisBarChart(fda00$results, options = list(
-  title="Adverse events for 'X-ray'",
-  vAxis="{title:'event type'}",
+Bar <- gvisBarChart(api_response_medDev$results, options = list(
+  title="Adverse events",
+  vAxis="{title:'Medical Device'}",
   hAxis="{title:'adverse events'}"))
 plot(Bar)
 
-# puoi anche aggiungere la parte di stringa +AND+device.generic_name:x-ray a search=
-product_code <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_report_product_code.exact")
-generic_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.generic_name.exact")
-brand_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.brand_name.exact")
-manufacturer_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.manufacturer_d_name.exact")
-manufacturer_country <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.manufacturer_d_country.exact")
-### device_operator <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_operator.exact") ### troppo sporco
-### patient_sequence_number_outcome <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=patient.sequence_number_outcome.exact") ### e' un casino, meglio evitare
-source_type <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=source_type.exact")
-event_type <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_type.exact")
-### event_location <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=event_location.exact") ### praticamente inutile, dati incompleti
-report_source_code <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=report_source_code.exact")
-reporter <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=reporter_occupation_code.exact")
-
-# per chiamate "combinate" devo usare AND e devo fare una chiamata per ogni combinazione
-hospital_AND_death <- fromJSON("https://api.fda.gov/device/event.json?search=event_location:hospital+AND+event_type:death&count=device.generic_name.exact")
-
+# every API call containing "count=date_received" returns a time series
 time_series <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2015-01-01]+AND+device.generic_name:x-ray&count=date_received")
 date_posix2 <- strptime(time_series$results$time, "%Y%m%d")
 received_by_fda2 <- as.Date(date_posix2, "%Y-%m-%d")
 df <- data.frame(dates = received_by_fda2, reports = time_series$results$count)
 ggplot(data = df, aes(x = dates, y = reports)) +
   geom_line() +
-  labs(x="Year", y="Reports") +
+  labs(x="Time", y="Reports") +
   ggtitle("This is a title")
 
-# NOTA: il 18 agosto del 2009 ci sono stati moltissimi report per x-ray (979). Perché?
-df[1988,]
 
-# troviamo le date in cui sono stati riportati più di 250 reports per 'x-ray'
-xRay_250 <- which(df$reports > 250)
-# sono quasi tutti nel 2009, e qualcuno nel 2008. Probabilmente questo fatto è legato a questo:
-# http://www.fda.gov/radiation-emittingproducts/radiationemittingproductsandprocedures/medicalimaging/medicalx-rays/ucm115354.htm
-# Nel 2009 è uscito un report sulle radiazioni ionizzanti a cui sono sottoposti i cittadini USA
-# http://www.ncrponline.org/Publications/Press_Releases/160press.html
-df[xRay_250,]
+# Warning -----------------------------------------------------------------
 
-Bar <- gvisBarChart(generic_name$results[1:10, 1:2], options = list(
-  title="Adverse events",
-  vAxis="{title:'manufacturers'}",
-  hAxis="{title:'adverse events'}"))
-plot(Bar)
+# count .exact returns 100 elements by deafult. We can change this behavior by passing a different 'limit',
+# but the maximum will always be 1000 elements. This is not a problem if we make an API call to get the total
+# number of 'device.manufaturer_d_country', but it is worth mentioning if we want to get the total number of
+# 'device.manufaturer_d_name', 'device.generic_name', or 'device.brand_name', we will obtain only the 1000
+# most recurring manufacturers/devices.
 
-# WARNING!
-# con count .exact restituisce di deafult 100 elementi. Se ne voglio di più posso impostare limit,
-# ma in ogni caso non mi restituisce più di 1000 risultati. In pratica non credo sia un problema, perché
-# i 1000 risultati più frequenti negli anni 1999-2014 dovrebbero coprire quasi tutti i dispositivi medici esistenti
-# Però è bene dire che c'è questo problema
-# NOTA: è un po' lenta la chiamata, ma tanto la uso per estrarre il disclaimer, la licenza, il last update,
-# quindi tanto la dovrei fare in ogni caso questa chiamata alle API della FDA.
-# La data inziale i cui la FDA ha iniziato a raccogliere questi dati dovrebbe essere il 1991, quindi è fissa
-# Uso Sys.Date() per ottenere la data di oggi come data finale
-med_devices <- fromJSON(paste0("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+", Sys.Date(),"]&count=device.generic_name.exact&limit=1000"))
+# pattern matching and replacement on manufacturer
+str1 <- "ZIMMER, INC."
+str1 <- gsub(pattern = ",", replacement = "", x = str1)
+str1 <- gsub(pattern = " ", replacement = "+", x = str1)
 
-med_devices$meta$disclaimer
-med_devices$meta$license
-med_devices$meta$last_updated
+# pattern matching and replacement on medical device
+str2 <- "PUMP, INFUSION, IMPLANTED, PROGRAMMABLE"
+str2 <- gsub(pattern = ",", replacement = "", x = str2)
+str2 <- gsub(pattern = " ", replacement = "+", x = str2)
 
-# estraggo la lista dei 1000 medical devices più frequenti perché mi serve per la regular expression sul
-# selectInput che scrivo a mano (vedi app shiny SpeseDM)
-med_devices_list <- med_devices$results$term
-searchString <- "x-ray"
-dmRegExpr <- sort(unique(med_devices_list[grep(pattern = searchString, x = med_devices_list, ignore.case = TRUE)]))

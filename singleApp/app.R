@@ -3,7 +3,7 @@
 
 library(jsonlite)
 library(ggplot2)
-
+suppressPackageStartupMessages(library(googleVis))
 
 # General settings --------------------------------------------------------
 
@@ -37,21 +37,28 @@ server <- function(input, output) {
   output$distPlot <- renderPlot({
     hist(rnorm(input$obs), col = 'darkgray', border = 'white')
     })
-  
-  ### output$startDate <- renderText({input$dateRange[1]})
-  ### output$endDate   <- renderText({input$dateRange[2]})
-  
-  # create the string for the API call (it's a reactive expression, NOT a renderText) 
+    
+  # construct the string for the API call (it's a reactive expression, NOT a renderText) 
   api_call <- reactive({
     
     str0 <- paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
     
-    if (input$manufacturer_checkboxInput == TRUE)
-      str1 <- paste0("+AND+device.manufacturer_d_name:", input$chosen_manufacturer)
+    if (input$manufacturer_checkboxInput == TRUE) {
+      # sanitize string (the API call would fail with names containing ',' or ' ')
+      sanitized_manufacturer <- gsub(pattern = ",", replacement = "", x = input$chosen_manufacturer)
+      sanitized_manufacturer <- gsub(pattern = " ", replacement = "+", x = sanitized_manufacturer)
+      str1 <- paste0("+AND+device.manufacturer_d_name:", sanitized_manufacturer)
+    }
+      
     else str1 <- ""
     
-    if (input$medDev_checkboxInput == TRUE)
-      str2 <- paste0("+AND+device.generic_name:", input$chosen_medDev)
+    if (input$medDev_checkboxInput == TRUE) {
+      # sanitize string
+      sanitized_medDev <- gsub(pattern = ",", replacement = "", x = input$chosen_medDev)
+      sanitized_medDev <- gsub(pattern = " ", replacement = "+", x = sanitized_medDev)
+      str2 <- paste0("+AND+device.generic_name:", sanitized_medDev)
+    }
+    
     else str2 <- ""
     
     str3 <- "&count=date_received"
@@ -60,16 +67,10 @@ server <- function(input, output) {
     paste0(api_open_request, api_endpoint, str0, str1, str2, str3)    
     })
   
-  # DEBUG
-  output$renderPrint1 <- renderPrint({input$dateRange[1]})
-  output$renderPrint2 <- renderPrint({input$dateRange[2]})
-  
-  
-  ##############################################################
-  # make the API call (TO BE FIXED)
-  
+  # make the API call
   api_response <- reactive({ fromJSON(api_call()) })
   
+  # extract a data frame from the API response
   df <- reactive({
     df_tmp <- api_response()$results
     date_posix <- strptime(df_tmp$time, "%Y%m%d")
@@ -77,22 +78,27 @@ server <- function(input, output) {
     data.frame(dates = received_by_fda, reports = df_tmp$count)
     })
   
-  output$df_from_API_call <- renderTable({ api_response <- fromJSON(api_call())
-                                        head(api_response$results) })
-  # DEBUG
-#  output$df_from_API_call <- reactive({ api_response <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2015-01-01]+AND+device.generic_name:x-ray&count=date_received")
- #                                       class(api_response$results) })
-#  values$time_series <- fromJSON(api_call())
-#   time_series <- fromJSON(renderText({"api_call"}))
-#   date_posix <- strptime(time_series$results$time, "%Y%m%d")
-#   received_by_fda <- as.Date(date_posix, "%Y-%m-%d")
-#   output$df <- data.frame(dates = received_by_fda, reports = time_series$results$count)
-  ##############################################################
+  # create dynamically the manufacturer_helpText UI component
+  output$manufacturer_helpText <- renderUI({
+    if (input$manufacturer_checkboxInput == TRUE) {
+      helpText(strong("Manufacturer"), "(e.g. GE Healthcare)")}
+      
+  })
   
+  # create dynamically the manufacturer_selectInput UI component
+  output$manufacturer_selectInput <- renderUI({
+    searchString <- toupper("")
+    manufacturer_RegEx <- sort(unique(
+      manufacturers_list[grep(pattern = searchString, x = manufacturers_list, ignore.case = TRUE)]))
+    if (input$manufacturer_checkboxInput == TRUE) {
+      selectInput(inputId = "chosen_manufacturer", label = "",
+                  choices = manufacturer_RegEx, selected = manufacturer_RegEx[1])}
+    })
+    
   # create dynamically the medDev_helpText UI component
   output$medDev_helpText <- renderUI({
-    if (input$medDev_checkboxInput == TRUE)
-      helpText(strong("Medical Device "), "(e.g. infusion pump)")
+    if (input$medDev_checkboxInput == TRUE) {
+      helpText(strong("Medical Device "), "(e.g. infusion pump)")}
     })
     
   # create dynamically the medDev_selectInput UI component
@@ -100,27 +106,11 @@ server <- function(input, output) {
     searchString <- toupper("")
     medDev_RegEx <- sort(unique(
       medDevices_list[grep(pattern = searchString, x = medDevices_list, ignore.case = TRUE)]))
-    if (input$medDev_checkboxInput == TRUE)
+    if (input$medDev_checkboxInput == TRUE){
       selectInput(inputId = "chosen_medDev", label = "",
-                  choices = medDev_RegEx, selected = medDev_RegEx[1])
+                  choices = medDev_RegEx, selected = medDev_RegEx[1])}
     })
   
-  # create dynamically the manufacturer_helpText UI component
-  output$manufacturer_helpText <- renderUI({
-    if (input$manufacturer_checkboxInput == TRUE)
-      helpText(strong("Manufacturer"), "(e.g. GE Healthcare)")
-    })
-  
-  # create dynamically the manufacturer_selectInput UI component
-  output$manufacturer_selectInput <- renderUI({
-    searchString <- toupper("")
-    manufacturer_RegEx <- sort(unique(
-      manufacturers_list[grep(pattern = searchString, x = manufacturers_list, ignore.case = TRUE)]))
-    if (input$manufacturer_checkboxInput == TRUE)
-      selectInput(inputId = "chosen_manufacturer", label = "",
-                  choices = manufacturer_RegEx, selected = manufacturer_RegEx[1])
-    })
-
   # summary string about the results from the API call
   output$summaryView <- renderPrint({
     max_index <- which.max(df()$reports)
@@ -146,12 +136,11 @@ ui <- shinyUI(fluidPage(
   # load the CSS (try with a different CSS file)
   # theme = "bootstrap.css",
   
-  titlePanel("Hello Shiny (titlePanel)"),
+  titlePanel("MAUDE adverse events (titlePanel)"),
   
   # global layout of the shiny application
   sidebarLayout(position = "left",
     
-    # sidebar panel
     sidebarPanel(
       
       helpText(strong("Date Range")),
@@ -182,25 +171,23 @@ ui <- shinyUI(fluidPage(
                               href="https://open.fda.gov/api/reference/", target="_blank")),
       helpText("Last update: ", medDevices$meta$last_updated),
       helpText(strong("Disclaimer")),
-      helpText(medDevices$meta$disclaimer),
+      helpText(medDevices$meta$disclaimer)
       
-      uiOutput("renderPrint1"), # start date
-      uiOutput("renderPrint2"), # end date
-      uiOutput("startDate"),
-      uiOutput("endDate")
+      ###uiOutput("renderPrint1"), # start date
+      ###uiOutput("renderPrint2"), # end date
+      ###uiOutput("startDate"),
+      ###uiOutput("endDate")
       
     ),  # close sidebarPanel
     
     mainPanel(
+      
       h4("Summary"),
       textOutput("summaryView"),
       
       h4("Time Series"),
-      plotOutput("timeSeriesView"),
-      
-      tableOutput("df_from_API_call") # DEBUG
-      
-      ### plotOutput("distPlot")
+      plotOutput("timeSeriesView")
+
     )
     
   )  # close sidebarLayout
@@ -210,3 +197,9 @@ ui <- shinyUI(fluidPage(
 )  # close ui function
 
 shinyApp(ui = ui, server = server)
+
+
+# Reference ---------------------------------------------------------------
+
+# MAUDE database - http://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfmaude/search.cfm
+
