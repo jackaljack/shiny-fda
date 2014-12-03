@@ -244,3 +244,83 @@ tryCatch(
     print(paste0(e$message, ": Try with a different combination of manufacturer/medical device"))
     print("Try with a different combination of manufacturer/medical device")
   })
+
+
+# 2014-12-03 --------------------------------------------------------------
+
+# barplot for top10 world countries (metti in pagina overview)
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates, "&count=device.manufacturer_d_country.exact"))
+reordered_term <- with(response$results, reorder(x = term, X = count))
+ggplot(response$results[1:10,], aes(x = reordered_term[1:10], y = count)) +
+  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
+  coord_flip()
+
+# barplot for US states (FORSE metti in pagina overview)
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates, "+AND+device.manufacturer_d_country:US", "&count=device.manufacturer_d_state.exact"))
+ggplot(response$results[1:20,], aes(x = term, y = count)) +
+  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
+  coord_flip()
+
+# barplot for event_type in the world (metti in pagina Overview, sotto time series)
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
+                            "+AND+(",
+                            "event_type:", "\"", "malfunction", "\"",
+                            "+event_type:", "\"", "injury", "\"",
+                            "+event_type:", "\"", "death", "\"",
+                            "+event_type:", "\"", "other", "\"",
+                            ")",
+                            "&count=event_type.exact"))
+reordered_term <- with(response$results, reorder(x = term, X = count))
+ggplot(response$results, aes(x = reordered_term, y = count)) +
+  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
+  coord_flip()
+
+# top10 devices  (*ASKU=ASKed but Unaivailable, show a helpText below)
+# metti in tab "Medical Device", non in "Overview"
+# faccio scegliere con dei selectInput:
+# hospital, home, all places
+# US, UK, ..., all countries
+# death, malfunction, injury, other (magari non faccio scegliere e li mostro tutti e 3-4)
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
+                            "+AND+device.manufacturer_d_country:US",
+                            "+AND+event_location:hospital", # mi sa che hospital e' troppo restrittivo, forse ci vuole un OR
+                            "+AND+event_type:death",
+                            "&count=device.generic_name.exact",
+                            "&limit=10"))
+reordered_term <- with(response$results, reorder(x = term, X = count))
+ggplot(response$results, aes(x = reordered_term, y = count)) +
+  geom_bar(stat = "identity", fill = "blue", colour = "black", na.rm = FALSE) +
+  coord_flip()
+
+# nel tab "Medical device" si può anche restringere a uno specifico manufacturer
+# top 10 medical devices responsible for deaths, produced by the chosen manufacturer (SANITIZED)
+# fai scegliere manufacturer e event_type
+# Pero' forse e' piu' immediato far scegliere solo il manufacturer e plottare direttamente tutti i barplot
+# per death, injury, malfunction e other. Sono barplot diversi perche' le top10 potrebbero essere diversi.
+# (cioe' qui un barplot con dodge non si puo' fare)
+# Fai 4 chiamate, 1 per death, injury, malfuction, (other)
+chosen_manufacturer <- "Covidien"
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
+                            "+AND+device.manufacturer_d_name:", chosen_manufacturer,
+                            "+AND+event_type:death",
+                            "&count=device.generic_name.exact",
+                            "&limit=10"))
+reordered_term <- with(response$results, reorder(x = term, X = count))
+ggplot(response$results, aes(x = reordered_term, y = count)) +
+  geom_bar(stat = "identity", fill = "green", colour = "black", na.rm = FALSE) +
+  coord_flip()
+
+# not ver useful
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
+                            "AND+device.manufacturer_d_country:UK", "&count=manufacturer_d_city"))
+head(response$results)
+
+# not ver useful
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
+                            "&count=number_patients_in_event")) # dividi per event_type, event_location
+head(response$results)
+
+# not ver useful
+response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
+                            "&count=number_devices_in_event"))  # dividi per event_type, event_location
+head(response$results)

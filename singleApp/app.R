@@ -33,8 +33,8 @@ medDevices <- fromJSON(api_firstCall_medDev)
 manufacturers <- fromJSON(api_firstCall_manufacturer)
 
 # extract the list of the most common medical devices and the 1000 most common manufacturers
-medDevices_list <- medDevices$results$term
-manufacturers_list <- manufacturers$results$term
+medDevices_list <- sort(medDevices$results$term)
+manufacturers_list <- sort(manufacturers$results$term)
 
 
 # server Fuction ----------------------------------------------------------
