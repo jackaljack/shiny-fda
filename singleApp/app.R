@@ -116,8 +116,51 @@ server <- function(input, output) {
                reports = api_response_eventType$results$count)
   })
   
+  # API call to obtain the most frequently reported Medical Devices having event_type:death
+  deaths <- reactive({
+    api_response_deaths <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(),
+        "+AND+event_type:death",
+        "&count=device.generic_name.exact",
+        "&limit=10"
+      )
+    )
+    data.frame(device  = api_response_deaths$results$term,
+               reports = api_response_deaths$results$count)
+  })
   
-
+  # API call to obtain the most frequently reported Medical Devices having event_type:injury
+  injuries <- reactive({
+    api_response_injuries <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(),
+        "+AND+event_type:injury",
+        "&count=device.generic_name.exact",
+        "&limit=10"
+      )
+    )
+    data.frame(device  = api_response_injuries$results$term,
+               reports = api_response_injuries$results$count)
+  })
+  
+  # API call to obtain the most frequently reported Medical Devices having event_type:malfunction
+  malfunctions <- reactive({
+    api_response_malfunctions <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(),
+        "+AND+event_type:malfunction",
+        "&count=device.generic_name.exact",
+        "&limit=10"
+      )
+    )
+    data.frame(device  = api_response_malfunctions$results$term,
+               reports = api_response_malfunctions$results$count)
+  })
+  
   # create dynamically the manufacturer_selectInput UI component
   output$manufacturer_selectInput <- renderUI({
     searchString <- toupper("")
@@ -155,6 +198,30 @@ server <- function(input, output) {
   output$gVisBarPlotEventTypeView <- renderGvis({
     gvisBarChart(data = eventType(), options = list(
       title="", vAxis="{title:'Event Type'}", hAxis="{title:'Reports'}"))
+  })
+  
+  # Bar Plot death
+  # Note: googleVis charts are not shown within RStudio
+  output$gVisBarPlotDeathView <- renderGvis({
+    gvisBarChart(data = deaths(), options = list(
+      series="[{color:'black'}]",
+      title="Deaths", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
+  })
+  
+  # Bar Plot injury
+  # Note: googleVis charts are not shown within RStudio
+  output$gVisBarPlotInjuryView <- renderGvis({
+    gvisBarChart(data = injuries(), options = list(
+      series="[{color:'orange'}]",
+      title="Injuries", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
+  })
+  
+  # Bar Plot malfunction
+  # Note: googleVis charts are not shown within RStudio
+  output$gVisBarPlotMalfunctionView <- renderGvis({
+    gvisBarChart(data = malfunctions(), options = list(
+      series="[{color:'red'}]",
+      title="Malfunctions", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
   })
   
 } # close server function
@@ -212,7 +279,13 @@ ui <- shinyUI(fluidPage(
       htmlOutput("gVisBarPlotCountriesView"),
       
       h4("Outcomes associated with the adverse event"),
-      htmlOutput("gVisBarPlotEventTypeView")
+      htmlOutput("gVisBarPlotEventTypeView"),
+      
+      h4("Most frequently reported Medical Devices"),
+      helpText(em("Note: ASKU means ASKed but Unaivailable")),      
+      htmlOutput("gVisBarPlotDeathView"),
+      htmlOutput("gVisBarPlotInjuryView"),
+      htmlOutput("gVisBarPlotMalfunctionView")
 
     )
     
