@@ -248,33 +248,6 @@ tryCatch(
 
 # 2014-12-03 --------------------------------------------------------------
 
-# barplot for top10 world countries (metti in pagina overview)
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates, "&count=device.manufacturer_d_country.exact"))
-reordered_term <- with(response$results, reorder(x = term, X = count))
-ggplot(response$results[1:10,], aes(x = reordered_term[1:10], y = count)) +
-  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
-  coord_flip()
-
-# barplot for US states (FORSE metti in pagina overview)
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates, "+AND+device.manufacturer_d_country:US", "&count=device.manufacturer_d_state.exact"))
-ggplot(response$results[1:20,], aes(x = term, y = count)) +
-  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
-  coord_flip()
-
-# barplot for event_type in the world (metti in pagina Overview, sotto time series)
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
-                            "+AND+(",
-                            "event_type:", "\"", "malfunction", "\"",
-                            "+event_type:", "\"", "injury", "\"",
-                            "+event_type:", "\"", "death", "\"",
-                            "+event_type:", "\"", "other", "\"",
-                            ")",
-                            "&count=event_type.exact"))
-reordered_term <- with(response$results, reorder(x = term, X = count))
-ggplot(response$results, aes(x = reordered_term, y = count)) +
-  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
-  coord_flip()
-
 # top10 devices  (*ASKU=ASKed but Unaivailable, show a helpText below)
 # metti in tab "Medical Device", non in "Overview"
 # faccio scegliere con dei selectInput:

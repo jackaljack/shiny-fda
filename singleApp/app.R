@@ -12,6 +12,7 @@ sanitizeString <- function(inputString){
   return(sanitized_string)
 }
 
+
 # General settings --------------------------------------------------------
 
 api_open_request <- "https://api.fda.gov/"
@@ -45,48 +46,78 @@ manufacturers_list <- append(x = c("ALL"), values = manufacturers_list)
 
 server <- function(input, output) {
   
-  output$distPlot <- renderPlot({
-    hist(rnorm(input$obs), col = 'darkgray', border = 'white')
-    })
-    
-  # construct the string for the API call (it's a reactive expression, NOT a renderText) 
-  api_call <- reactive({
-    
-    str0 <- paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
-    
-    if (input$chosen_manufacturer != "ALL") {
-      str1 <- paste0("+AND+device.manufacturer_d_name:", sanitizeString(input$chosen_manufacturer))
-    }
-    
-    else str1 <- ""
-    
-    if (input$chosen_medDev != "ALL") {
-      str2 <- paste0("+AND+device.generic_name:", sanitizeString(input$chosen_medDev))
-    }
-    else str2 <- ""
-    
-    str3 <- "&count=date_received"
-    
-    # string for the API call
-    paste0(api_open_request, api_endpoint, str0, str1, str2, str3)    
-    })
-  
-  # make the API call (implement a tryCatch in order to handle HTTP 404 request code)
-  api_response <- reactive({ fromJSON(api_call()) })
-  
-  # extract a data frame from the API response
-  df <- reactive({
-    df_tmp <- api_response()$results
-    date_posix <- strptime(df_tmp$time, "%Y%m%d")
-    received_by_fda <- as.Date(date_posix, "%Y-%m-%d")
-    data.frame(dates = received_by_fda, reports = df_tmp$count)
-    })
-  
-  # create dynamically the manufacturer_helpText UI component
-  output$manufacturer_helpText <- renderUI({
-    helpText(strong("Manufacturer"), "(e.g. GE Healthcare)")      
+  # date range to use in the API call
+  search_dates <- reactive({
+    paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
   })
   
+  # manufacturer to use in the API call
+  search_manufacturer <- reactive({
+    if (input$chosen_manufacturer != "ALL") {
+      paste0("+AND+device.manufacturer_d_name:", sanitizeString(input$chosen_manufacturer))
+    } else {
+      ""
+    }
+  })
+  
+  # medical device to use in the API call
+  search_medDev <- reactive({
+    if (input$chosen_medDev != "ALL") {
+      paste0("+AND+device.generic_name:", sanitizeString(input$chosen_medDev))
+    } else {
+      ""
+    }    
+  })
+
+  # API call to obtain a time series
+  timeSeries <- reactive({
+    api_response_timeSeries <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(), search_medDev(),
+        "&count=date_received"
+      )
+    )
+    dates_posix <- strptime(api_response_timeSeries$results$time, "%Y%m%d")
+    received_by_fda <- as.Date(dates_posix, "%Y-%m-%d")
+    data.frame(dates = received_by_fda, reports = api_response_timeSeries$results$count)
+  })
+  
+  # API call to obtain the top10 list of the countries where most of the adverse events occurred
+  top10Countries <- reactive({
+    api_response_top10Countries <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(), search_medDev(),
+        "&count=device.manufacturer_d_country.exact&limit=10"
+      )
+    )
+    data.frame(countries = api_response_top10Countries$results$term,
+               reports   = api_response_top10Countries$results$count)
+  })
+  
+  # API call to obtain the most recurring event types regarding the adverse events occurred
+  # Note: exclude 'No answer provided', '' (empty string), and '?'
+  eventType <- reactive({
+    api_response_eventType <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(), search_medDev(),
+        "+AND+(",
+        "event_type:", "\"", "malfunction", "\"",
+        "+event_type:", "\"", "injury", "\"",
+        "+event_type:", "\"", "death", "\"",
+        "+event_type:", "\"", "other", "\"",
+        ")",
+        "&count=event_type.exact"
+      )
+    )
+    data.frame(event   = api_response_eventType$results$term,
+               reports = api_response_eventType$results$count)
+  })
+  
+  
+
   # create dynamically the manufacturer_selectInput UI component
   output$manufacturer_selectInput <- renderUI({
     searchString <- toupper("")
@@ -94,13 +125,8 @@ server <- function(input, output) {
       manufacturers_list[grep(pattern = searchString, x = manufacturers_list, ignore.case = TRUE)]))
     selectInput(inputId = "chosen_manufacturer", label = "",
                 choices = manufacturer_RegEx, selected = manufacturers_list[1])
-    })
-    
-  # create dynamically the medDev_helpText UI component
-  output$medDev_helpText <- renderUI({
-    helpText(strong("Medical Device "), "(e.g. infusion pump)")
-    })
-    
+  })
+        
   # create dynamically the medDev_selectInput UI component
   output$medDev_selectInput <- renderUI({
     searchString <- toupper("")
@@ -108,35 +134,28 @@ server <- function(input, output) {
       medDevices_list[grep(pattern = searchString, x = medDevices_list, ignore.case = TRUE)]))
     selectInput(inputId = "chosen_medDev", label = "",
                 choices = medDev_RegEx, selected = medDevices_list[1])
-    })
-  
-  # summary string about the results from the API call
-  output$summaryView <- renderPrint({
-    max_index <- which.max(df()$reports)
-    paste0("The maximum number of reports received by the FDA in a single day is ", df()$reports[max_index],
-           ", and they were received on " , df()$dates[max_index])
-    })
-
-  # plot the time series of the reports across the selected date range (NOT shown)
-  output$timeSeriesView <- renderPlot({
-    ggplot(data = df(), aes(x = dates, y = reports)) +
-      geom_line() +
-      labs(x = "Time", y = "Adverse Event Reports") +
-      ggtitle(paste0("Reports received by the FDA from ", input$dateRange[1], " to ", input$dateRange[2]))
-    })
-  
-  # plot the time series of the reports across the selected date range
+  })
+    
+  # Time Series
   # Note: googleVis charts are not shown within RStudio
   output$gVisTimeSeriesView <- renderGvis({
-    gvisLineChart(data = df(), options = list(
+    gvisLineChart(data = timeSeries(), options = list(
       title="", vAxis="{title:'Reports'}", hAxis="{title:'Time'}"))
     })
   
-  # plot a GeoChart showing the areas where the adverse events were occurred
+  # Bar Plot top10 countries
   # Note: googleVis charts are not shown within RStudio
-  output$gVisMapView <- renderGvis({
-    gvisGeoChart(df())
-    })
+  output$gVisBarPlotCountriesView <- renderGvis({
+    gvisBarChart(data = top10Countries(), options = list(
+      title="", vAxis="{title:'Countries'}", hAxis="{title:'Reports'}"))
+  })
+  
+  # Bar Plot event type
+  # Note: googleVis charts are not shown within RStudio
+  output$gVisBarPlotEventTypeView <- renderGvis({
+    gvisBarChart(data = eventType(), options = list(
+      title="", vAxis="{title:'Event Type'}", hAxis="{title:'Reports'}"))
+  })
   
 } # close server function
 
@@ -159,14 +178,14 @@ ui <- shinyUI(fluidPage(
       helpText(em("Format: yyyy-mm-dd")),
       dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
       
-      hr(),
+      hr(),      
       
-      uiOutput("manufacturer_helpText"),
+      helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
       uiOutput("manufacturer_selectInput"),
       
       hr(),
       
-      uiOutput("medDev_helpText"),
+      helpText(strong("Medical Device "), "(e.g. infusion pump)"),
       uiOutput("medDev_selectInput"),
       
       hr(),
@@ -176,7 +195,7 @@ ui <- shinyUI(fluidPage(
       helpText("License: ", a("http://open.fda.gov/license",
                               href="http://open.fda.gov/license", target="_blank")),
       helpText("API reference: ", a("https://open.fda.gov/api/reference/",
-                              href="https://open.fda.gov/api/reference/", target="_blank")),
+                                    href="https://open.fda.gov/api/reference/", target="_blank")),
       helpText("Last update: ", medDevices$meta$last_updated),
       helpText(strong("Disclaimer")),
       helpText(medDevices$meta$disclaimer)
@@ -185,18 +204,15 @@ ui <- shinyUI(fluidPage(
     
     mainPanel(
       
-      # h4("Summary"),
-      # textOutput("summaryView"),
-      
-      # h4("Time Series"),
-      # plotOutput("timeSeriesView"),
-      
       # if request code is 404 show an error message, otherwise print a time series
-      h4("Reports received by the FDA"),
+      h4("Medical Device Reports received by the FDA"),
       htmlOutput("gVisTimeSeriesView"),
       
-      h4("GoogleVis GeoChart"),
-      htmlOutput("gVisMapView")
+      h4("Where are reported medical devices manufactured?"),
+      htmlOutput("gVisBarPlotCountriesView"),
+      
+      h4("Outcomes associated with the adverse event"),
+      htmlOutput("gVisBarPlotEventTypeView")
 
     )
     
@@ -215,4 +231,3 @@ shinyApp(ui = ui, server = server)
 # openFDA API basics - https://open.fda.gov/api/reference/
 # openFDA API devices - https://open.fda.gov/device/event/
 # openFDA API devices reference - https://open.fda.gov/device/event/reference/
-
