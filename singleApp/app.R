@@ -1,6 +1,9 @@
 
 # Load required packages --------------------------------------------------
 
+# library(shiny)
+# runApp("singleApp")
+
 library(jsonlite)
 library(ggplot2) # NOT used
 suppressPackageStartupMessages(library(googleVis))
@@ -161,6 +164,57 @@ server <- function(input, output) {
                reports = api_response_malfunctions$results$count)
   })
   
+  # API call to obtain the most important field in the Medical Device Reports
+  # Note: the maximum number of elements returned by the openFDA elasticsearch-based API is 100.
+  # A solution would be making more API calls skipping previously generated results (e.g. "&skip=100").
+  medDevReports <- reactive({
+    api_response_df <- fromJSON(
+      paste0(
+        api_open_request, api_endpoint,
+        search_dates(), search_manufacturer(), search_medDev(),
+        "&limit=100&skip=0"
+      )
+    )
+    
+    # create empty lists to store medical devices identification data
+    generic_name         <- character()
+    brand_name           <- character()
+    product_code         <- character()
+    manufacturer_name    <- character()
+    manufacturer_country <- character()
+    
+    # api_response_df$results$device is a list (there can be more than one device involved in a single
+    # adverse event), so we can append new data to an existing list, and build a data frame afterwards.
+    
+    for(i in seq(from = 1, to = length(api_response_df$results$device))) {
+      
+      date_posix <- strptime(api_response_df$results$date_received[i], "%Y%m%d")
+      received_by_fda <- as.Date(date_posix, "%Y-%m-%d")
+      product_code <- append(product_code, api_response_df$results$device[[i]]$device_report_product_code)
+      generic_name <- append(generic_name, api_response_df$results$device[[i]]$generic_name)
+      brand_name <- append(brand_name, api_response_df$results$device[[i]]$brand_name)
+      manufacturer_name <- append(manufacturer_name, api_response_df$results$device[[i]]$manufacturer_d_name)
+      manufacturer_country <- append(manufacturer_country, api_response_df$results$device[[i]]$manufacturer_d_country)
+      
+    }
+    
+    # create the data frame and return it to the reactive expression
+    data.frame(
+      receivedByFDA = received_by_fda,
+      # eventKey      = api_response_df$results$event_key,
+      eventType     = api_response_df$results$event_type,
+      # eventLocation = api_response_df$results$event_location,
+      # reportNumber  = api_response_df$results$report_number,
+      reportSource  = api_response_df$results$report_source_code,
+      genericName   = generic_name,
+      brandName     = brand_name,
+      prodCode      = product_code,
+      # manCountry  = manufacturer_country,
+      manName     = manufacturer_name
+    )
+    
+  })
+  
   # create dynamically the manufacturer_selectInput UI component
   output$manufacturer_selectInput <- renderUI({
     searchString <- toupper("")
@@ -224,6 +278,11 @@ server <- function(input, output) {
       title="Malfunctions", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
   })
   
+  # Table containing the most important fields in a Medical Device adverse event Report
+  output$tableView <- renderDataTable({
+    medDevReports()
+  })
+  
 } # close server function
 
 
@@ -241,8 +300,8 @@ ui <- shinyUI(fluidPage(
     
     sidebarPanel(
       
-      helpText(strong("Date Range")),
-      helpText(em("Format: yyyy-mm-dd")),
+      helpText(strong("Date Range"), "(Format: yyyy-mm-dd)"),
+      ### helpText(em("Format: yyyy-mm-dd")),
       dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
       
       hr(),      
@@ -285,7 +344,10 @@ ui <- shinyUI(fluidPage(
       helpText(em("Note: ASKU means ASKed but Unaivailable")),      
       htmlOutput("gVisBarPlotDeathView"),
       htmlOutput("gVisBarPlotInjuryView"),
-      htmlOutput("gVisBarPlotMalfunctionView")
+      htmlOutput("gVisBarPlotMalfunctionView"),
+      
+      h4("Results"),
+      dataTableOutput("tableView")
 
     )
     

@@ -74,14 +74,13 @@ head(hospital_AND_death$results)
 
 # Some ideas for the plots ------------------------------------------------
 
-fda <- fromJSON(paste0("https://api.fda.gov/device/event.json?", search_dates, search_limit, search_skip))
+fda <- fromJSON(paste0("https://api.fda.gov/device/event.json?", search_dates, "&limit=100"))
 # create empty lists to store medical devices identification data
-product_code <- character()
 generic_name <- character()
 brand_name <- character()
+product_code <- character()
 manufacturer_name <- character()
 manufacturer_country <- character()
-device_operator <- character()
 
 # fda$results$device is a list (there can be more than one device involved in a single adverse event),
 # so we can append new data to an existing list, and build a data frame afterwards.
@@ -94,107 +93,38 @@ for(i in seq(from = 1, to = length(fda$results$device))) {
   brand_name <- append(brand_name, fda$results$device[[i]]$brand_name)
   manufacturer_name <- append(manufacturer_name, fda$results$device[[i]]$manufacturer_d_name)
   manufacturer_country <- append(manufacturer_country, fda$results$device[[i]]$manufacturer_d_country)
-  device_operator <- append(device_operator, fda$results$device[[i]]$device_operator)
 
 }
 
 # create the data frame from the previously generated lists
-devices <- data.frame(productCode = product_code,
-                      genericName = generic_name,
-                      brandName = brand_name,
-                      manufacturerName = manufacturer_name,
-                      manufacturerCountry = manufacturer_country,
-                      deviceOperator = device_operator,
-                      receivedByFDA = received_by_fda)
+medDevReports <- data.frame(
+  eventKey = fda$results$event_key,
+  eventType = fda$results$event_type,
+  eventLocation = fda$results$event_location,
+  reportNumber = fda$results$report_number,
+  reportSource = fda$results$report_source_code,
+  genericName = generic_name,
+  brandName = brand_name,
+  prodCode = product_code,
+  manufName = manufacturer_name,
+  manufCountry = manufacturer_country,
+  # deviceOperator = device_operator,
+  receivedByFDA = received_by_fda)
 
-dim(devices)[1]
+dim(medDevReports)[1]
 
-barplot(summary(devices$manufacturerCountry))
-
-ggplot(devices, aes(x = manufacturerCountry, )) +
-  geom_bar(stat="bin", fill="blue", colour="black", na.rm = FALSE) + 
-  labs(x="Medical Devices", y="Frequency") +
-  coord_flip() + 
-  ggtitle("This is a title")
-
-ggplot(devices, aes(x = productCode, )) +
+ggplot(medDevReports, aes(x = prodCode, )) +
   geom_bar(stat="bin", fill="red", colour="black", na.rm = FALSE) + 
   labs(x="Medical Devices", y="Frequency") +
   coord_flip() + 
   ggtitle("This is a title")
 
-ggplot(devices, aes(x = brandName, )) +
-  geom_bar(stat="bin", fill="red", colour="black", na.rm = FALSE) + 
-  labs(x="Medical Devices", y="Frequency") +
-  coord_flip() + 
-  ggtitle("This is a title")
-
-ggplot(devices, aes(x = manufacturerCountry, )) +
+ggplot(medDevReports, aes(x = manufCountry, )) +
   geom_bar(stat="bin", fill="blue", colour="black", na.rm = FALSE) + 
-  facet_grid(productCode ~ .) +
+  facet_grid(prodCode ~ .) +
   labs(x="Medical Devices", y="Frequency") +
   coord_flip() + 
   ggtitle("This is a title")
-
-ggplot(devices, aes(x = manufacturerName, fill = manufacturerCountry)) +
-  geom_bar(stat="bin", na.rm = FALSE) + 
-  labs(x="Medical Devices", y="Frequency") +
-  facet_grid(productCode ~ .) +
-  coord_flip() + 
-  ggtitle("This is a title")
-
-ggplot(api_response_medDev$results, aes(x = term, y = count)) +
-  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
-  geom_text(aes(label = count), hjust=0.5) +
-  labs(x="Medical Devices", y="Frequency") +
-  coord_flip() +
-  ggtitle("This is a title")
-
-ggplot(api_response_manufacturers$results, aes(x = term, y = count)) +
-  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
-  coord_flip() +
-  ggtitle("This is a title")
-
-ggplot(api_response_countries$results, aes(x = term, y = count)) +
-  geom_bar(stat = "identity", fill = "red", colour = "black", na.rm = FALSE) +
-  coord_flip()
-
-# googleVis bar chart
-Bar <- gvisBarChart(api_response_medDev$results, options = list(
-  title="Adverse events",
-  vAxis="{title:'Medical Device'}",
-  hAxis="{title:'adverse events'}"))
-plot(Bar)
-
-# googleVis line chart
-Line <- gvisLineChart(data = df, options = list(
-  title="Adverse events",
-  vAxis="{title:'Reports'}",
-  hAxis="{title:'Time'}"))
-plot(Line)
-
-# googleVis GeoChart
-emptyGeoChart <- gvisGeoChart(df)
-plot(emptyGeoChart)
-
-# every API call containing "count=date_received" returns a time series
-time_series <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2015-01-01]+AND+device.generic_name:x-ray&count=date_received")
-date_posix2 <- strptime(time_series$results$time, "%Y%m%d")
-received_by_fda2 <- as.Date(date_posix2, "%Y-%m-%d")
-df <- data.frame(dates = received_by_fda2, reports = time_series$results$count)
-ggplot(data = df, aes(x = dates, y = reports)) +
-  geom_line() +
-  labs(x="Time", y="Reports") +
-  ggtitle("This is a title")
-
-
-# Warning -----------------------------------------------------------------
-
-# count .exact returns 100 elements by deafult. We can change this behavior by passing a different 'limit',
-# but the maximum will always be 1000 elements. This is not a problem if we make an API call to get the total
-# number of 'device.manufaturer_d_country', but it is worth mentioning if we want to get the total number of
-# 'device.manufaturer_d_name', 'device.generic_name', or 'device.brand_name', we will obtain only the 1000
-# most recurring manufacturers/devices.
 
 # pattern matching and replacement on manufacturer
 str1 <- "ZIMMER, INC."
@@ -251,7 +181,7 @@ tryCatch(
 # top10 devices  (*ASKU=ASKed but Unaivailable, show a helpText below)
 response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
                             "+AND+device.manufacturer_d_country:US",
-                            "+AND+event_location:hospital", # mi sa che hospital e' troppo restrittivo, forse ci vuole un OR
+                            "+AND+event_location:hospital",
                             "+AND+event_type:death",
                             "&count=device.generic_name.exact",
                             "&limit=10"))
