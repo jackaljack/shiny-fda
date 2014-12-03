@@ -36,6 +36,10 @@ manufacturers <- fromJSON(api_firstCall_manufacturer)
 medDevices_list <- sort(medDevices$results$term)
 manufacturers_list <- sort(manufacturers$results$term)
 
+# add "ALL" to the lists
+medDevices_list <- append(x = c("ALL"), values = medDevices_list)
+manufacturers_list <- append(x = c("ALL"), values = manufacturers_list)
+
 
 # server Fuction ----------------------------------------------------------
 
@@ -50,16 +54,15 @@ server <- function(input, output) {
     
     str0 <- paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
     
-    if (input$manufacturer_checkboxInput == TRUE) {
+    if (input$chosen_manufacturer != "ALL") {
       str1 <- paste0("+AND+device.manufacturer_d_name:", sanitizeString(input$chosen_manufacturer))
     }
-      
+    
     else str1 <- ""
     
-    if (input$medDev_checkboxInput == TRUE) {
+    if (input$chosen_medDev != "ALL") {
       str2 <- paste0("+AND+device.generic_name:", sanitizeString(input$chosen_medDev))
     }
-    
     else str2 <- ""
     
     str3 <- "&count=date_received"
@@ -81,9 +84,7 @@ server <- function(input, output) {
   
   # create dynamically the manufacturer_helpText UI component
   output$manufacturer_helpText <- renderUI({
-    if (input$manufacturer_checkboxInput == TRUE) {
-      helpText(strong("Manufacturer"), "(e.g. GE Healthcare)")}
-      
+    helpText(strong("Manufacturer"), "(e.g. GE Healthcare)")      
   })
   
   # create dynamically the manufacturer_selectInput UI component
@@ -91,15 +92,13 @@ server <- function(input, output) {
     searchString <- toupper("")
     manufacturer_RegEx <- sort(unique(
       manufacturers_list[grep(pattern = searchString, x = manufacturers_list, ignore.case = TRUE)]))
-    if (input$manufacturer_checkboxInput == TRUE) {
-      selectInput(inputId = "chosen_manufacturer", label = "",
-                  choices = manufacturer_RegEx, selected = manufacturer_RegEx[1])}
+    selectInput(inputId = "chosen_manufacturer", label = "",
+                choices = manufacturer_RegEx, selected = manufacturers_list[1])
     })
     
   # create dynamically the medDev_helpText UI component
   output$medDev_helpText <- renderUI({
-    if (input$medDev_checkboxInput == TRUE) {
-      helpText(strong("Medical Device "), "(e.g. infusion pump)")}
+    helpText(strong("Medical Device "), "(e.g. infusion pump)")
     })
     
   # create dynamically the medDev_selectInput UI component
@@ -107,9 +106,8 @@ server <- function(input, output) {
     searchString <- toupper("")
     medDev_RegEx <- sort(unique(
       medDevices_list[grep(pattern = searchString, x = medDevices_list, ignore.case = TRUE)]))
-    if (input$medDev_checkboxInput == TRUE){
-      selectInput(inputId = "chosen_medDev", label = "",
-                  choices = medDev_RegEx, selected = medDev_RegEx[1])}
+    selectInput(inputId = "chosen_medDev", label = "",
+                choices = medDev_RegEx, selected = medDevices_list[1])
     })
   
   # summary string about the results from the API call
@@ -163,15 +161,11 @@ ui <- shinyUI(fluidPage(
       
       hr(),
       
-      checkboxInput("manufacturer_checkboxInput", "Choose a specific Manufacturer", value = FALSE),
-      # select the manufacturer (if checkbox is checked)
       uiOutput("manufacturer_helpText"),
       uiOutput("manufacturer_selectInput"),
       
       hr(),
       
-      checkboxInput("medDev_checkboxInput", "Choose a specific Medical Device", value = FALSE),
-      # select the medical device (if checkbox is checked)
       uiOutput("medDev_helpText"),
       uiOutput("medDev_selectInput"),
       
