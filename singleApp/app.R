@@ -258,24 +258,39 @@ server <- function(input, output) {
   # Note: googleVis charts are not shown within RStudio
   output$gVisBarPlotDeathView <- renderGvis({
     gvisBarChart(data = deaths(), options = list(
+      # width=1200, height=300,
       series="[{color:'black'}]",
-      title="Deaths", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
+      title="Deaths",
+      vAxis="{title: 'Medical Devices',  titleTextStyle: {color: 'black'}}",
+      hAxis="{title:'Reports'}",
+      chartArea="{width: '40%', height: '80%'}"
+      ))
   })
   
   # Bar Plot injury
   # Note: googleVis charts are not shown within RStudio
   output$gVisBarPlotInjuryView <- renderGvis({
     gvisBarChart(data = injuries(), options = list(
+      # width=1200, height=300,
       series="[{color:'orange'}]",
-      title="Injuries", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
+      title="Injuries",
+      vAxis="{title: 'Medical Devices',  titleTextStyle: {color: 'black'}}",
+      hAxis="{title:'Reports'}",
+      chartArea="{width: '40%', height: '80%'}"
+      ))
   })
   
   # Bar Plot malfunction
   # Note: googleVis charts are not shown within RStudio
   output$gVisBarPlotMalfunctionView <- renderGvis({
     gvisBarChart(data = malfunctions(), options = list(
+      # width=1200, height=300,
       series="[{color:'red'}]",
-      title="Malfunctions", vAxis="{title:'Medical Devices'}", hAxis="{title:'Reports'}"))
+      title="Malfunctions",
+      vAxis="{title: 'Medical Devices',  titleTextStyle: {color: 'black'}}",
+      hAxis="{title:'Reports'}",
+      chartArea="{width: '40%', height: '80%'}"
+      ))
   })
   
   # Table containing the most important fields in a Medical Device adverse event Report
@@ -290,9 +305,6 @@ server <- function(input, output) {
 
 ui <- shinyUI(navbarPage("MAUDEnavbar",
   
-  # load the CSS (try with a different CSS file)
-  # theme = "bootstrap.css",
-  
   tabPanel(title = "Overview",
            sidebarLayout(position = "left",
                          
@@ -304,16 +316,7 @@ ui <- shinyUI(navbarPage("MAUDEnavbar",
                            uiOutput("manufacturer_selectInput"),
                            hr(),
                            helpText(strong("Medical Device "), "(e.g. infusion pump)"),
-                           uiOutput("medDev_selectInput"),
-                           hr(),
-                           helpText(strong("Metadata")),
-                           helpText("License: ", a("http://open.fda.gov/license",
-                                                   href="http://open.fda.gov/license", target="_blank")),
-                           helpText("API reference: ", a("https://open.fda.gov/api/reference/",
-                                                         href="https://open.fda.gov/api/reference/", target="_blank")),
-                           helpText("Last update: ", medDevices$meta$last_updated),
-                           helpText(strong("Disclaimer")),
-                           helpText(medDevices$meta$disclaimer)
+                           uiOutput("medDev_selectInput")
                          ),  # close sidebarPanel
                          
                          mainPanel(
@@ -323,21 +326,73 @@ ui <- shinyUI(navbarPage("MAUDEnavbar",
                            h4("Where are reported medical devices manufactured?"),
                            htmlOutput("gVisBarPlotCountriesView"),                           
                            h4("Outcomes associated with the adverse event"),
-                           htmlOutput("gVisBarPlotEventTypeView"),                           
-                           h4("Most frequently reported Medical Devices"),
+                           htmlOutput("gVisBarPlotEventTypeView")                           
+                         )  #  close mainPanel                     
+           ),  # close sidebarLayout
+           icon = icon("birthday-cake")),  #  close tabPanel
+  
+  tabPanel(title = "Table",
+#            sidebarLayout(position = "left",
+#                          
+#                          sidebarPanel(
+#                            helpText(strong("Date Range"), "(Format: yyyy-mm-dd)"),
+#                            dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
+#                            hr(),
+#                            helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
+#                            uiOutput("manufacturer_selectInput"),
+#                            hr(),
+#                            helpText(strong("Medical Device "), "(e.g. infusion pump)"),
+#                            uiOutput("medDev_selectInput")
+#                          ),  # close sidebarPanel
+#                          
+#                          mainPanel(                          
+                           h4("Table View for the selected Manufacurer"),
+                           dataTableOutput("tableView"),                           
+#                          )  #  close mainPanel                     
+#            ),  # close sidebarLayout
+           icon = icon("table")), # close tabPanel
+  
+  tabPanel(title ="Manufacturer Analysis",
+#            sidebarLayout(position = "left",
+#                          
+#                          sidebarPanel(
+#                            helpText(strong("Date Range"), "(Format: yyyy-mm-dd)") ###
+#                            dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
+#                            hr(),
+#                            helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
+#                            uiOutput("manufacturer_selectInput")
+#                          ),  # close sidebarPanel
+#                          
+#                          mainPanel(                           
+                           h4("Most frequently reported Medical Devices for the chosen Manufacturer"),
                            helpText(em("Note: ASKU means ASKed but Unaivailable")),      
                            htmlOutput("gVisBarPlotDeathView"),
                            htmlOutput("gVisBarPlotInjuryView"),
                            htmlOutput("gVisBarPlotMalfunctionView"),                           
-                           h4("Results"),
-                           dataTableOutput("tableView")                           
-                         )  #  close mainPanel                     
-           ),
-           icon = NULL), #  close tabPanel
-  tabPanel(title = "Component 2"),
-  tabPanel(title ="Component 3")
+#                          )  #  close mainPanel                     
+#            ),  # close sidebarLayout
+           icon = icon("bar-chart-o")),  # close tabPanel
+
+  tabPanel(title = "About",
+           hr(),
+           helpText(strong("Metadata")),
+           helpText("License: ", a("http://open.fda.gov/license",
+                                   href="http://open.fda.gov/license", target="_blank")),
+           helpText("API reference: ", a("https://open.fda.gov/api/reference/",
+                                         href="https://open.fda.gov/api/reference/", target="_blank")),
+           helpText("Last update: ", medDevices$meta$last_updated),
+           helpText(strong("Disclaimer")),
+           helpText(medDevices$meta$disclaimer),
+           icon = icon("binoculars")),
   
-))  # close navbarPage and shinyUI function
+  fluid = TRUE,
+  responsive = TRUE,
+  # load the CSS (try with a different CSS file)
+  # theme = "bootstrap.css",
+  windowTitle = "MAUDEapp"
+)  # close navbarPage
+
+)  # close shinyUI function
 
 shinyApp(ui = ui, server = server)
 
