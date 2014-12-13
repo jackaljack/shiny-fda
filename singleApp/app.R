@@ -288,74 +288,56 @@ server <- function(input, output) {
 
 # User Interface ----------------------------------------------------------
 
-ui <- shinyUI(fluidPage(
+ui <- shinyUI(navbarPage("MAUDEnavbar",
   
   # load the CSS (try with a different CSS file)
   # theme = "bootstrap.css",
   
-  titlePanel("MAUDE adverse events (titlePanel)"),
+  tabPanel(title = "Overview",
+           sidebarLayout(position = "left",
+                         
+                         sidebarPanel(
+                           helpText(strong("Date Range"), "(Format: yyyy-mm-dd)"),
+                           dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
+                           hr(),
+                           helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
+                           uiOutput("manufacturer_selectInput"),
+                           hr(),
+                           helpText(strong("Medical Device "), "(e.g. infusion pump)"),
+                           uiOutput("medDev_selectInput"),
+                           hr(),
+                           helpText(strong("Metadata")),
+                           helpText("License: ", a("http://open.fda.gov/license",
+                                                   href="http://open.fda.gov/license", target="_blank")),
+                           helpText("API reference: ", a("https://open.fda.gov/api/reference/",
+                                                         href="https://open.fda.gov/api/reference/", target="_blank")),
+                           helpText("Last update: ", medDevices$meta$last_updated),
+                           helpText(strong("Disclaimer")),
+                           helpText(medDevices$meta$disclaimer)
+                         ),  # close sidebarPanel
+                         
+                         mainPanel(
+                           # if request code is 404 show an error message, otherwise print a time series
+                           h4("Medical Device Reports received by the FDA"),
+                           htmlOutput("gVisTimeSeriesView"),
+                           h4("Where are reported medical devices manufactured?"),
+                           htmlOutput("gVisBarPlotCountriesView"),                           
+                           h4("Outcomes associated with the adverse event"),
+                           htmlOutput("gVisBarPlotEventTypeView"),                           
+                           h4("Most frequently reported Medical Devices"),
+                           helpText(em("Note: ASKU means ASKed but Unaivailable")),      
+                           htmlOutput("gVisBarPlotDeathView"),
+                           htmlOutput("gVisBarPlotInjuryView"),
+                           htmlOutput("gVisBarPlotMalfunctionView"),                           
+                           h4("Results"),
+                           dataTableOutput("tableView")                           
+                         )  #  close mainPanel                     
+           ),
+           icon = NULL), #  close tabPanel
+  tabPanel(title = "Component 2"),
+  tabPanel(title ="Component 3")
   
-  # global layout of the shiny application
-  sidebarLayout(position = "left",
-    
-    sidebarPanel(
-      
-      helpText(strong("Date Range"), "(Format: yyyy-mm-dd)"),
-      ### helpText(em("Format: yyyy-mm-dd")),
-      dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
-      
-      hr(),      
-      
-      helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
-      uiOutput("manufacturer_selectInput"),
-      
-      hr(),
-      
-      helpText(strong("Medical Device "), "(e.g. infusion pump)"),
-      uiOutput("medDev_selectInput"),
-      
-      hr(),
-      
-      # Metadata and Disclaimer
-      helpText(strong("Metadata")),
-      helpText("License: ", a("http://open.fda.gov/license",
-                              href="http://open.fda.gov/license", target="_blank")),
-      helpText("API reference: ", a("https://open.fda.gov/api/reference/",
-                                    href="https://open.fda.gov/api/reference/", target="_blank")),
-      helpText("Last update: ", medDevices$meta$last_updated),
-      helpText(strong("Disclaimer")),
-      helpText(medDevices$meta$disclaimer)
-        
-    ),  # close sidebarPanel
-    
-    mainPanel(
-      
-      # if request code is 404 show an error message, otherwise print a time series
-      h4("Medical Device Reports received by the FDA"),
-      htmlOutput("gVisTimeSeriesView"),
-      
-      h4("Where are reported medical devices manufactured?"),
-      htmlOutput("gVisBarPlotCountriesView"),
-      
-      h4("Outcomes associated with the adverse event"),
-      htmlOutput("gVisBarPlotEventTypeView"),
-      
-      h4("Most frequently reported Medical Devices"),
-      helpText(em("Note: ASKU means ASKed but Unaivailable")),      
-      htmlOutput("gVisBarPlotDeathView"),
-      htmlOutput("gVisBarPlotInjuryView"),
-      htmlOutput("gVisBarPlotMalfunctionView"),
-      
-      h4("Results"),
-      dataTableOutput("tableView")
-
-    )
-    
-  )  # close sidebarLayout
-  
-)  # close fluidPage
-
-)  # close ui function
+))  # close navbarPage and shinyUI function
 
 shinyApp(ui = ui, server = server)
 
