@@ -4,12 +4,12 @@ suppressPackageStartupMessages(library(googleVis))
 
 api_open_request <- "https://api.fda.gov/"
 api_endpoint <- "device/event.json?"
-api_key = "api_key=12345"
+api_key = "api_key=LxEarrVZZnixpPE4zM0f2o4hTTIwZM2QE64U20z5"
 
 # date_received is the date the report was received by the FDA
 date_start <- "1991-01-01"
 date_end <- "2015-01-01" 
-search_dates <- paste0("search=date_received:[", date_start, "+TO+", date_end, "]")
+search_dates <- paste0("&search=date_received:[", date_start, "+TO+", date_end, "]")
 
 search_medDev1 <- "x-ray"
 search_medDev2 <- "infusion pump"
@@ -38,7 +38,7 @@ api_call_manufacturers <- paste0(api_open_request, api_endpoint, search_dates,
 api_response_manufacturers <- fromJSON(api_call_manufacturers)
 
 # most common manufacturers COUNTRIES for the chosen medical device
-api_call_countries <- paste0(api_open_request, api_endpoint, search_dates,
+api_call_countries <- paste0(api_open_request, api_endpoint, api_key, search_dates,
                              "+AND+device.generic_name:", "\"", search_medDev1, "\"",
                              "&count=device.manufacturer_d_country.exact",
                              search_limit, search_skip) 

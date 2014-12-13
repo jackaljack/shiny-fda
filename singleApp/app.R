@@ -20,14 +20,14 @@ sanitizeString <- function(inputString){
 
 api_open_request <- "https://api.fda.gov/"
 api_endpoint <- "device/event.json?"
-api_key = "api_key=12345"
+api_key = "api_key=LxEarrVZZnixpPE4zM0f2o4hTTIwZM2QE64U20z5"
 
-api_firstCall_medDev <- paste0(api_open_request, api_endpoint,
-                               "search=date_received:[1991-01-01+TO+", Sys.Date(), "]",
+api_firstCall_medDev <- paste0(api_open_request, api_endpoint, api_key,
+                               "&search=date_received:[1991-01-01+TO+", Sys.Date(), "]",
                                "&count=device.generic_name.exact&limit=1000")
 
-api_firstCall_manufacturer <- paste0(api_open_request, api_endpoint,
-                                     "search=date_received:[1991-01-01+TO+", Sys.Date(), "]",
+api_firstCall_manufacturer <- paste0(api_open_request, api_endpoint, api_key,
+                                     "&search=date_received:[1991-01-01+TO+", Sys.Date(), "]",
                                      "&count=device.manufacturer_d_name.exact&limit=1000")
 
 
@@ -51,7 +51,7 @@ server <- function(input, output) {
   
   # date range to use in the API call
   search_dates <- reactive({
-    paste0("search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
+    paste0("&search=date_received:[", input$dateRange[1], "+TO+", input$dateRange[2], "]")
   })
   
   # manufacturer to use in the API call
@@ -76,7 +76,7 @@ server <- function(input, output) {
   timeSeries <- reactive({
     api_response_timeSeries <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(), search_medDev(),
         "&count=date_received"
       )
@@ -90,7 +90,7 @@ server <- function(input, output) {
   top10Countries <- reactive({
     api_response_top10Countries <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(), search_medDev(),
         "&count=device.manufacturer_d_country.exact&limit=10"
       )
@@ -104,7 +104,7 @@ server <- function(input, output) {
   eventType <- reactive({
     api_response_eventType <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(), search_medDev(),
         "+AND+(",
         "event_type:", "\"", "malfunction", "\"",
@@ -123,7 +123,7 @@ server <- function(input, output) {
   deaths <- reactive({
     api_response_deaths <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(),
         "+AND+event_type:death",
         "&count=device.generic_name.exact",
@@ -138,7 +138,7 @@ server <- function(input, output) {
   injuries <- reactive({
     api_response_injuries <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(),
         "+AND+event_type:injury",
         "&count=device.generic_name.exact",
@@ -153,7 +153,7 @@ server <- function(input, output) {
   malfunctions <- reactive({
     api_response_malfunctions <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(),
         "+AND+event_type:malfunction",
         "&count=device.generic_name.exact",
@@ -164,23 +164,23 @@ server <- function(input, output) {
                reports = api_response_malfunctions$results$count)
   })
   
-  # API call to obtain the most important field in the Medical Device Reports
+  # API call to obtain the most important fields in the Medical Device Reports
   # Note: the maximum number of elements returned by the openFDA elasticsearch-based API is 100.
   # A solution would be making more API calls skipping previously generated results (e.g. "&skip=100").
   medDevReports <- reactive({
     api_response_df <- fromJSON(
       paste0(
-        api_open_request, api_endpoint,
+        api_open_request, api_endpoint, api_key,
         search_dates(), search_manufacturer(), search_medDev(),
         "&limit=100&skip=0"
       )
     )
     
     # create empty lists to store medical devices identification data
-    generic_name         <- character()
-    brand_name           <- character()
-    product_code         <- character()
-    manufacturer_name    <- character()
+    generic_name <- character()
+    brand_name <- character()
+    product_code <- character()
+    manufacturer_name <- character()
     manufacturer_country <- character()
     
     # api_response_df$results$device is a list (there can be more than one device involved in a single
@@ -201,7 +201,7 @@ server <- function(input, output) {
     # create the data frame and return it to the reactive expression
     data.frame(
       receivedByFDA = received_by_fda,
-      # eventKey      = api_response_df$results$event_key,
+      # eventKey    = api_response_df$results$event_key,
       eventType     = api_response_df$results$event_type,
       # eventLocation = api_response_df$results$event_location,
       # reportNumber  = api_response_df$results$report_number,
@@ -210,7 +210,7 @@ server <- function(input, output) {
       brandName     = brand_name,
       prodCode      = product_code,
       # manCountry  = manufacturer_country,
-      manName     = manufacturer_name
+      manName       = manufacturer_name
     )
     
   })
