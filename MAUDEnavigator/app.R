@@ -2,10 +2,12 @@
 # Load required packages --------------------------------------------------
 
 # library(shiny)
-# runApp("singleApp")
+# library(shinyapps)
+# shinyapps::setAccountInfo(name="<ACCOUNT>", token="<TOKEN>", secret="<SECRET>")
+# Run runApp('MAUDEnavigator') and press 'Publish' in the window.
 
+library(httr)
 library(jsonlite)
-library(ggplot2) # NOT used
 suppressPackageStartupMessages(library(googleVis))
 
 # define a function to sanitize strings (the API call would fail with strings containing ',' or ' ')
@@ -303,7 +305,7 @@ server <- function(input, output) {
 
 # User Interface ----------------------------------------------------------
 
-ui <- shinyUI(navbarPage("MAUDEnavbar",
+ui <- shinyUI(navbarPage("MAUDE navigator",
   
   tabPanel(title = "Overview",
            sidebarLayout(position = "left",
@@ -329,51 +331,21 @@ ui <- shinyUI(navbarPage("MAUDEnavbar",
                            htmlOutput("gVisBarPlotEventTypeView")                           
                          )  #  close mainPanel                     
            ),  # close sidebarLayout
-           icon = icon("birthday-cake")),  #  close tabPanel
+           icon = icon("home")),  #  close tabPanel
   
   tabPanel(title = "Table",
-#            sidebarLayout(position = "left",
-#                          
-#                          sidebarPanel(
-#                            helpText(strong("Date Range"), "(Format: yyyy-mm-dd)"),
-#                            dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
-#                            hr(),
-#                            helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
-#                            uiOutput("manufacturer_selectInput"),
-#                            hr(),
-#                            helpText(strong("Medical Device "), "(e.g. infusion pump)"),
-#                            uiOutput("medDev_selectInput")
-#                          ),  # close sidebarPanel
-#                          
-#                          mainPanel(                          
-                           h4("Table View for the selected Manufacurer"),
-                           dataTableOutput("tableView"),                           
-#                          )  #  close mainPanel                     
-#            ),  # close sidebarLayout
+           h4("Table View for the selected Manufacturer"),
+           dataTableOutput("tableView"),                           
            icon = icon("table")), # close tabPanel
   
-  tabPanel(title ="Manufacturer Analysis",
-#            sidebarLayout(position = "left",
-#                          
-#                          sidebarPanel(
-#                            helpText(strong("Date Range"), "(Format: yyyy-mm-dd)") ###
-#                            dateRangeInput("dateRange", label = "", start = Sys.Date() - 365, end = Sys.Date()),
-#                            hr(),
-#                            helpText(strong("Manufacturer"), "(e.g. GE Healthcare)"),
-#                            uiOutput("manufacturer_selectInput")
-#                          ),  # close sidebarPanel
-#                          
-#                          mainPanel(                           
-                           h4("Most frequently reported Medical Devices for the chosen Manufacturer"),
-                           helpText(em("Note: ASKU means ASKed but Unaivailable")),      
-                           htmlOutput("gVisBarPlotDeathView"),
-                           htmlOutput("gVisBarPlotInjuryView"),
-                           htmlOutput("gVisBarPlotMalfunctionView"),                           
-#                          )  #  close mainPanel                     
-#            ),  # close sidebarLayout
+  tabPanel(title ="Manufacturer",
+           htmlOutput("gVisBarPlotDeathView"),
+           htmlOutput("gVisBarPlotInjuryView"),
+           htmlOutput("gVisBarPlotMalfunctionView"),
+           helpText(em("Note: ASKU means ASKed but Unaivailable")),
            icon = icon("bar-chart-o")),  # close tabPanel
 
-  tabPanel(title = "About",
+  tabPanel(title = "HowTo",
            hr(),
            helpText(strong("Metadata")),
            helpText("License: ", a("http://open.fda.gov/license",
@@ -383,13 +355,13 @@ ui <- shinyUI(navbarPage("MAUDEnavbar",
            helpText("Last update: ", medDevices$meta$last_updated),
            helpText(strong("Disclaimer")),
            helpText(medDevices$meta$disclaimer),
-           icon = icon("binoculars")),
+           icon = icon("book")),
   
   fluid = TRUE,
   responsive = TRUE,
   # load the CSS (try with a different CSS file)
   # theme = "bootstrap.css",
-  windowTitle = "MAUDEapp"
+  windowTitle = "MAUDE Navigator (vers.0.0.1)"
 )  # close navbarPage
 
 )  # close shinyUI function

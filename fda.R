@@ -52,7 +52,7 @@ api_call_medDev <- paste0(api_open_request, api_endpoint, search_dates,
 api_response_medDev <- fromJSON(api_call_medDev)
 
 # more ideas for API calls
-product_code <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_report_product_code.exact")
+product_code2 <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.device_report_product_code.exact")
 generic_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.generic_name.exact")
 brand_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.brand_name.exact")
 manufacturer_name <- fromJSON("https://api.fda.gov/device/event.json?search=date_received:[1991-01-01+TO+2013-12-31]&count=device.manufacturer_d_name.exact")
@@ -157,50 +157,35 @@ api_call_404 <- paste0(api_open_request, api_endpoint, search_dates,
                        "+AND+device.manufacturer_d_name:", "\"", search_manufacturerNA, "\"",
                        "&count=device.generic_name.exact",
                        "&limit=1000", search_skip)
-api_response_404 <- fromJSON(api_call_404)
 
-tryCatch(
-  stop("you threw an error"), 
-  error = function(e) 
-  {
-    print(e$message) # or whatever error handling code you want
-  })
+# Error Handling ----------------------------------------------------------
+out <- tryCatch(expr = fromJSON(api_call_404),
+                error = function(cond) {
+                  if(grepl(pattern = "404", x = cond)) {
+                    # HTTP 404 means that the combination of the selected manufacturer/device does not exist
+                    message("The API response was an error. Try with a different combination of manufacturer/medical device.")
+                    message(cond) # in shiny diventa una stringa in un helptext. E il plot un conditionalPanel                    
+                  } else if(grepl(pattern = "500", x = cond)) {                    
+                    # HTTP 500 is a general server error. Here it means that the user is still selecting the input from the UI, so we just wait and do nothing.
+                    # do nothing
+                  } else {
+                    message("The API response was an error")
+                    message(cond)
+                  }
+                  # return(NA)
+                },
+#                 warning = function(cond) {
+#                   message("The API response returned a warning.")
+#                   message(cond)
+#                   return(NULL)
+#                 },
+                finally = {
+                  # execute at the end, regardless of success or error.
+                  message("")
+                  message(paste("Here is your API call:", api_call_404))
+                }
+)
 
-# This simple tryCatch works
-tryCatch(
-  expr = fromJSON(api_call_404),
-  error = function(e) 
-  {
-    print(paste0(e$message, ": Try with a different combination of manufacturer/medical device"))
-    print("Try with a different combination of manufacturer/medical device")
-  })
-
-
-# 2014-12-03 --------------------------------------------------------------
-
-# top10 devices  (*ASKU=ASKed but Unaivailable, show a helpText below)
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
-                            "+AND+device.manufacturer_d_country:US",
-                            "+AND+event_location:hospital",
-                            "+AND+event_type:death",
-                            "&count=device.generic_name.exact",
-                            "&limit=10"))
-reordered_term <- with(response$results, reorder(x = term, X = count))
-ggplot(response$results, aes(x = reordered_term, y = count)) +
-  geom_bar(stat = "identity", fill = "blue", colour = "black", na.rm = FALSE) +
-  coord_flip()
-
-# not ver useful
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
-                            "AND+device.manufacturer_d_country:UK", "&count=manufacturer_d_city"))
-head(response$results)
-
-# not ver useful
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
-                            "&count=number_patients_in_event")) # dividi per event_type, event_location
-head(response$results)
-
-# not ver useful
-response <- fromJSON(paste0(api_open_request, api_endpoint, search_dates,
-                            "&count=number_devices_in_event"))  # dividi per event_type, event_location
-head(response$results)
+cond1 <- 'Error in download_raw(txt) : client error: (404) Not Found'
+### Error in download_raw(txt) : client error: (404) Not Found # per questo devo dire che la combinazione non c'e'
+### Error in download_raw(txt) : server error: (500) Internal Server Error # per questo non devo fare niente
